@@ -11,7 +11,7 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
+import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
@@ -88,6 +88,8 @@ export default function HomeScreen() {
 
   const mapRef = useRef<MapView>(null);
   const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
+  const placesRef = useRef<GooglePlacesAutocompleteRef>(null);
+  const [searchText, setSearchText] = useState('');
 
   // expo-audio: crea el player una sola vez apuntando al archivo local
   const audioPlayer = useAudioPlayer(require('@/assets/sounds/alarm.wav'));
@@ -371,16 +373,40 @@ export default function HomeScreen() {
       {/* ── Buscador ── */}
       <View style={styles.searchContainer}>
         <GooglePlacesAutocomplete
-          placeholder="¿A dónde vas?"
+          ref={placesRef}
+          placeholder="Buscar destino..."
           fetchDetails={true}
           onPress={(_data, details = null) => handlePlaceSelected(details)}
           onFail={(error) => console.error('[GooglePlaces] Error:', error)}
+          textInputProps={{
+            onChangeText: (text) => setSearchText(text),
+            clearButtonMode: 'never', // lo manejamos manualmente con renderRightButton
+          }}
+          renderLeftButton={() => (
+            <View style={styles.searchIconContainer}>
+              <Text style={styles.searchIcon}>🔍</Text>
+            </View>
+          )}
+          renderRightButton={() =>
+            searchText.length > 0 ? (
+              <TouchableOpacity
+                style={styles.searchClearButton}
+                onPress={() => {
+                  placesRef.current?.clear();
+                  setSearchText('');
+                }}
+              >
+                <Text style={styles.searchClearText}>✕</Text>
+              </TouchableOpacity>
+            ) : null
+          }
           query={{
             key: process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY,
             language: 'es',
             components: 'country:co',
           }}
           styles={{
+            textInputContainer: styles.textInputContainer,
             textInput: styles.textInput,
             listView: styles.listView,
             description: { fontWeight: 'bold' },
@@ -558,17 +584,46 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     zIndex: 10,
   },
-  textInput: {
-    height: 50,
+  textInputContainer: {
     borderRadius: 12,
-    paddingHorizontal: 15,
-    fontSize: 16,
     backgroundColor: '#FFFFFF',
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 5,
+    alignItems: 'center',
+    paddingHorizontal: 8,
+  },
+  textInput: {
+    height: 50,
+    flex: 1,
+    fontSize: 16,
+    backgroundColor: 'transparent',
+    marginHorizontal: 0,
+    paddingHorizontal: 4,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  searchIconContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingLeft: 6,
+    paddingRight: 2,
+  },
+  searchIcon: {
+    fontSize: 16,
+  },
+  searchClearButton: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    height: 50,
+  },
+  searchClearText: {
+    fontSize: 15,
+    color: '#999',
+    fontWeight: '600',
   },
   listView: {
     backgroundColor: '#FFFFFF',
