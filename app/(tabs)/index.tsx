@@ -107,10 +107,14 @@ export default function HomeScreen() {
   async function initializeApp() {
     await requestPermissions();
     // Configura el audio: suena en silencio (iOS) y en background
-    await setAudioModeAsync({
-      playsInSilentMode: true,
-      shouldPlayInBackground: true,
-    });
+    try {
+      await setAudioModeAsync({
+        playsInSilentMode: true,
+        shouldPlayInBackground: true,
+      });
+    } catch (e) {
+      console.warn('[GeoLook] setAudioModeAsync no disponible en esta versión:', e);
+    }
   }
 
   async function requestPermissions() {
