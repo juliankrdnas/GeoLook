@@ -316,6 +316,27 @@ gradlew.bat app:assembleDebug --no-build-cache --no-daemon -x lint -x test
 
 ## 11. Version History
 
+### v1.1.0 — 2026-07-22 (Map fix)
+
+**Commit:** `fix: add Google Maps API key to AndroidManifest and enable Maps SDK for Android`  
+**Branch:** `master`
+
+**Changes:**
+- Added `com.google.android.geo.API_KEY` meta-data entry to `android/app/src/main/AndroidManifest.xml` so `react-native-maps` can render Google Maps tiles on Android.
+- Enabled **Maps SDK for Android** in Google Cloud Console for the project's API key (previously only Places API was authorized).
+- Required a full native rebuild (`npx expo run:android`) to apply the manifest change.
+
+**Google Cloud Console API key configuration (as of this version):**
+- Key name: `Maps Platform API Key`
+- APIs authorized: Places API (New), Maps SDK for Android
+- Restriction type: API restrictions (allowlist)
+
+**Warnings present (non-blocking):**
+- `expo-av` is deprecated as of SDK 54 — migration to `expo-audio` needed before SDK 55 upgrade.
+- `SafeAreaView` from `react-native` is deprecated — should be replaced with the one from `react-native-safe-area-context`.
+
+---
+
 ### v1.0.0 — 2026-07-21 (Initial release)
 
 **Commit:** `Initial commit - GeoLook proximity alarm app`  
@@ -348,25 +369,27 @@ Items are ordered by priority.
 
 ### 🔴 None currently blocking
 
-The app is fully functional as of v1.0.0.
+The app is fully functional as of v1.1.0.
 
 ### 🟡 Medium priority
 
 | # | Item | File(s) affected |
 |---|---|---|
 | 1 | Replace `explore.tsx` with something useful (alarm history, settings, or remove the tab) | `app/(tabs)/explore.tsx`, `app/(tabs)/_layout.tsx` |
-| 2 | Add Google Maps API key to `AndroidManifest.xml` for better Android map tiles | `android/app/src/main/AndroidManifest.xml` |
-| 3 | Review for implicit `any` TypeScript types across all files | All `.ts` / `.tsx` |
+| 2 | ~~Add Google Maps API key to `AndroidManifest.xml`~~ ✅ Done in v1.1.0 | — |
+| 3 | Migrate `expo-av` → `expo-audio` (deprecated in SDK 54, breaks in SDK 55) | `app/(tabs)/index.tsx` |
+| 4 | Replace `SafeAreaView` from `react-native` with one from `react-native-safe-area-context` | `app/(tabs)/index.tsx` |
+| 5 | Review for implicit `any` TypeScript types across all files | All `.ts` / `.tsx` |
 
 ### 🟢 Low priority / Nice to have
 
 | # | Item | Notes |
 |---|---|---|
-| 4 | Dark mode support in `index.tsx` | Currently uses hardcoded colors. Should use `useThemeColor` / `Colors`. |
-| 5 | Visual proximity progress indicator | A ring or progress bar showing how close the user is to the alarm radius. |
-| 6 | Alarm history | Save past destinations in AsyncStorage. Show in Explore tab. |
-| 7 | Custom radius input | Allow typing an arbitrary radius in addition to the 5 preset chips. |
-| 8 | Replace `app/modal.tsx` | Currently a placeholder with Expo template text. |
+| 6 | Dark mode support in `index.tsx` | Currently uses hardcoded colors. Should use `useThemeColor` / `Colors`. |
+| 7 | Visual proximity progress indicator | A ring or progress bar showing how close the user is to the alarm radius. |
+| 8 | Alarm history | Save past destinations in AsyncStorage. Show in Explore tab. |
+| 9 | Custom radius input | Allow typing an arbitrary radius in addition to the 5 preset chips. |
+| 10 | Replace `app/modal.tsx` | Currently a placeholder with Expo template text. |
 
 ---
 
