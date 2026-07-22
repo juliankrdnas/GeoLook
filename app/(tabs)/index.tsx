@@ -10,6 +10,7 @@
  *  - Reproducir sonido y vibración cuando el usuario entra en el radio.
  */
 
+import { MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
@@ -28,7 +29,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { GooglePlaceDetail, GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import { GooglePlaceDetail, GooglePlacesAutocomplete, GooglePlacesAutocompleteRef } from 'react-native-google-places-autocomplete';
 import MapView, { Circle, Marker } from 'react-native-maps';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -100,7 +101,6 @@ export default function HomeScreen() {
   useEffect(() => {
     initializeApp();
     return () => {
-      // Limpiar al desmontar
       stopLocationWatcher();
       stopAlarmSound();
     };
@@ -108,7 +108,6 @@ export default function HomeScreen() {
 
   async function initializeApp() {
     await requestPermissions();
-    // Configura el audio: suena en silencio (iOS) y en background
     try {
       await setAudioModeAsync({
         playsInSilentMode: true,
@@ -120,7 +119,6 @@ export default function HomeScreen() {
   }
 
   async function requestPermissions() {
-    // 1. Permiso de ubicación en primer plano
     const { status: fgStatus } = await Location.requestForegroundPermissionsAsync();
     if (fgStatus !== 'granted') {
       setErrorMsg('Sin permiso de ubicación la app no puede funcionar.');
@@ -128,7 +126,6 @@ export default function HomeScreen() {
       return;
     }
 
-    // 2. Permiso de ubicación en background (necesario para la tarea)
     const { status: bgStatus } = await Location.requestBackgroundPermissionsAsync();
     if (bgStatus !== 'granted') {
       Alert.alert(
@@ -138,7 +135,6 @@ export default function HomeScreen() {
       );
     }
 
-    // 3. Permiso de notificaciones
     const { status: notifStatus } = await Notifications.requestPermissionsAsync();
     if (notifStatus !== 'granted') {
       Alert.alert(
@@ -148,7 +144,6 @@ export default function HomeScreen() {
       );
     }
 
-    // 4. Obtener posición inicial para centrar el mapa
     try {
       const position = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
@@ -170,7 +165,6 @@ export default function HomeScreen() {
     try {
       audioPlayer.loop = true;
       audioPlayer.volume = 1.0;
-      // Si ya está reproduciendo, lo reinicia desde el inicio
       if (audioStatus.playing) {
         audioPlayer.seekTo(0);
       } else {
@@ -190,13 +184,13 @@ export default function HomeScreen() {
   // ─── Watcher de ubicación en primer plano ───────────────────────────────────
 
   async function startLocationWatcher(dest: LatLng, radius: number) {
-    stopLocationWatcher(); // Limpiar cualquier watcher previo
+    stopLocationWatcher();
 
     locationWatcherRef.current = await Location.watchPositionAsync(
       {
         accuracy: Location.Accuracy.High,
-        distanceInterval: 20, // Solo actualiza si el usuario se movió >= 20m (ahorra batería)
-        timeInterval: 10000,  // O cada 10 segundos como mínimo
+        distanceInterval: 20,
+        timeInterval: 10000,
       },
       (position) => {
         const { latitude, longitude } = position.coords;
@@ -209,7 +203,6 @@ export default function HomeScreen() {
 
         setCurrentDistance(distanceMeters);
 
-        // Verificar si entró en el radio (solo si la alarma sigue activa)
         setAlarmState((prev) => {
           if (prev === 'active' && distanceMeters <= radius) {
             handleAlarmTriggered(distanceMeters);
@@ -231,7 +224,6 @@ export default function HomeScreen() {
   // ─── Tarea de background ────────────────────────────────────────────────────
 
   async function startBackgroundTask(dest: LatLng, radius: number) {
-    // Guardar el estado en AsyncStorage para que la tarea lo lea
     await Promise.all([
       AsyncStorage.setItem(STORAGE_KEYS.DESTINATION, JSON.stringify(dest)),
       AsyncStorage.setItem(STORAGE_KEYS.RADIUS, String(radius)),
@@ -239,15 +231,14 @@ export default function HomeScreen() {
       AsyncStorage.setItem(STORAGE_KEYS.ALARM_TRIGGERED, 'false'),
     ]);
 
-    // Iniciar el servicio de ubicación en background
     const isRegistered = await Location.hasStartedLocationUpdatesAsync(PROXIMITY_TASK_NAME).catch(() => false);
     if (!isRegistered) {
       await Location.startLocationUpdatesAsync(PROXIMITY_TASK_NAME, {
         accuracy: Location.Accuracy.High,
-        distanceInterval: 50,      // Background puede ser menos frecuente
+        distanceInterval: 50,
         timeInterval: 15000,
-        showsBackgroundLocationIndicator: true,  // iOS: muestra la barra azul
-        foregroundService: {         // Android: notificación persistente obligatoria
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
           notificationTitle: 'GeoLook activo',
           notificationBody: 'Monitoreando proximidad al destino...',
           notificationColor: '#0a7ea4',
@@ -269,13 +260,8 @@ export default function HomeScreen() {
   // ─── Disparar alarma ────────────────────────────────────────────────────────
 
   const handleAlarmTriggered = useCallback(async (distanceMeters: number) => {
-    // Vibración intensa
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-
-    // Sonido
     playAlarmSound();
-
-    // Notificación local (visible aunque la app esté en primer plano)
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '📍 ¡Llegaste!',
@@ -291,7 +277,6 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const subscription = Notifications.addNotificationReceivedListener(() => {
-      // Si la notificación llegó estando en primer plano, actualizar la UI
       setAlarmState('triggered');
       playAlarmSound();
     });
@@ -340,10 +325,7 @@ export default function HomeScreen() {
 
     setAlarmState('active');
     setCurrentDistance(null);
-
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    // Iniciar monitoreo en primer plano Y en background simultáneamente
     await startLocationWatcher(destination, selectedRadius);
     await startBackgroundTask(destination, selectedRadius);
   };
@@ -351,11 +333,9 @@ export default function HomeScreen() {
   const handleCancelAlarm = async () => {
     setAlarmState('idle');
     setCurrentDistance(null);
-
     await stopBackgroundTask();
     stopLocationWatcher();
-    await stopAlarmSound();
-
+    stopAlarmSound();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -374,17 +354,18 @@ export default function HomeScreen() {
       <View style={styles.searchContainer}>
         <GooglePlacesAutocomplete
           ref={placesRef}
-          placeholder="Buscar destino..."
+          placeholder="Search here..."
           fetchDetails={true}
           onPress={(_data, details = null) => handlePlaceSelected(details)}
           onFail={(error) => console.error('[GooglePlaces] Error:', error)}
           textInputProps={{
             onChangeText: (text) => setSearchText(text),
-            clearButtonMode: 'never', // lo manejamos manualmente con renderRightButton
+            clearButtonMode: 'never',
+            placeholderTextColor: '#AAAAAA',
           }}
           renderLeftButton={() => (
             <View style={styles.searchIconContainer}>
-              <Text style={styles.searchIcon}>🔍</Text>
+              <MaterialIcons name="search" size={20} color="#AAAAAA" />
             </View>
           )}
           renderRightButton={() =>
@@ -396,7 +377,7 @@ export default function HomeScreen() {
                   setSearchText('');
                 }}
               >
-                <Text style={styles.searchClearText}>✕</Text>
+                <MaterialIcons name="close" size={18} color="#AAAAAA" />
               </TouchableOpacity>
             ) : null
           }
@@ -598,7 +579,8 @@ const styles = StyleSheet.create({
   textInput: {
     height: 50,
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
+    color: '#11181C',
     backgroundColor: 'transparent',
     marginHorizontal: 0,
     paddingHorizontal: 4,
@@ -608,22 +590,14 @@ const styles = StyleSheet.create({
   searchIconContainer: {
     justifyContent: 'center',
     alignItems: 'center',
-    paddingLeft: 6,
+    paddingLeft: 4,
     paddingRight: 2,
-  },
-  searchIcon: {
-    fontSize: 16,
   },
   searchClearButton: {
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 10,
     height: 50,
-  },
-  searchClearText: {
-    fontSize: 15,
-    color: '#999',
-    fontWeight: '600',
   },
   listView: {
     backgroundColor: '#FFFFFF',
