@@ -11,7 +11,6 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
@@ -21,7 +20,6 @@ import {
     ActivityIndicator,
     Alert,
     Platform,
-    SafeAreaView,
     ScrollView,
     StatusBar,
     StyleSheet,
@@ -31,6 +29,7 @@ import {
 } from 'react-native';
 import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
 import MapView, { Circle, Marker } from 'react-native-maps';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 // Importar la definición de la tarea para que quede registrada
 import { PROXIMITY_TASK_NAME, STORAGE_KEYS } from '@/tasks/proximity-task';
@@ -87,8 +86,11 @@ export default function HomeScreen() {
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
 
   const mapRef = useRef<MapView>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
   const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
+
+  // expo-audio: crea el player una sola vez apuntando al archivo local
+  const audioPlayer = useAudioPlayer(require('@/assets/sounds/alarm.wav'));
+  const audioStatus = useAudioPlayerStatus(audioPlayer);
 
   // ─── Inicialización ─────────────────────────────────────────────────────────
 
@@ -97,13 +99,12 @@ export default function HomeScreen() {
     return () => {
       // Limpiar al desmontar
       stopLocationWatcher();
-      unloadSound();
+      stopAlarmSound();
     };
   }, []);
 
   async function initializeApp() {
     await requestPermissions();
-    await setupAudio();
   }
 
   async function requestPermissions() {
@@ -151,46 +152,26 @@ export default function HomeScreen() {
     }
   }
 
-  async function setupAudio() {
-    await Audio.setAudioModeAsync({
-      playsInSilentModeIOS: true,   // Suena aunque el iPhone esté en silencio
-      staysActiveInBackground: true,
-      shouldDuckAndroid: false,
-    });
-  }
-
   // ─── Manejo del sonido ──────────────────────────────────────────────────────
 
-  async function playAlarmSound() {
+  function playAlarmSound() {
     try {
-      // Descargar el sonido si no está cargado
-      if (soundRef.current) {
-        await soundRef.current.replayAsync();
-        return;
+      audioPlayer.loop = true;
+      audioPlayer.volume = 1.0;
+      // Si ya está reproduciendo, lo reinicia desde el inicio
+      if (audioStatus.playing) {
+        audioPlayer.seekTo(0);
+      } else {
+        audioPlayer.play();
       }
-
-      // Intentar cargar el archivo local; si no existe aún, usar un tono de sistema
-      const { sound } = await Audio.Sound.createAsync(
-        require('@/assets/sounds/alarm.wav'),
-        { shouldPlay: true, isLooping: true, volume: 1.0 }
-      );
-      soundRef.current = sound;
     } catch (e) {
-      // Si el archivo de sonido no existe todavía, usamos solo vibración
-      console.warn('[GeoLook] No se pudo cargar alarm.wav, usando solo vibración.');
+      console.warn('[GeoLook] No se pudo reproducir alarm.wav, usando solo vibración.');
     }
   }
 
-  async function stopAlarmSound() {
-    if (soundRef.current) {
-      await soundRef.current.stopAsync();
-    }
-  }
-
-  async function unloadSound() {
-    if (soundRef.current) {
-      await soundRef.current.unloadAsync();
-      soundRef.current = null;
+  function stopAlarmSound() {
+    if (audioStatus.playing) {
+      audioPlayer.pause();
     }
   }
 
@@ -280,7 +261,7 @@ export default function HomeScreen() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
     // Sonido
-    await playAlarmSound();
+    playAlarmSound();
 
     // Notificación local (visible aunque la app esté en primer plano)
     await Notifications.scheduleNotificationAsync({
@@ -303,11 +284,11 @@ export default function HomeScreen() {
       playAlarmSound();
     });
     return () => subscription.remove();
-  }, []);
+  }, [audioStatus.playing]);
 
   // ─── Acciones del usuario ───────────────────────────────────────────────────
 
-  const handlePlaceSelected = (details: any) => {
+  const handlePlaceSelected = (details: GooglePlaceDetail | null) => {
     if (!details?.geometry?.location) return;
 
     const newDest: LatLng = {

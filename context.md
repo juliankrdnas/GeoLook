@@ -45,7 +45,7 @@
 | GPS | expo-location | ~19.0.8 |
 | Background tasks | expo-task-manager | ~14.0.9 |
 | Notifications | expo-notifications | ~0.32.17 |
-| Audio | expo-av | ~16.0.8 |
+| Audio | expo-audio | ~1.1.1 |
 | Haptics | expo-haptics | ~15.0.8 |
 | Distance calc | geolib | ^3.3.14 |
 | Shared state | @react-native-async-storage/async-storage | 2.2.0 |
@@ -316,6 +316,22 @@ gradlew.bat app:assembleDebug --no-build-cache --no-daemon -x lint -x test
 
 ## 11. Version History
 
+### v1.2.0 — 2026-07-22 (Code quality)
+
+**Commit:** `refactor: migrate expo-av to expo-audio, fix SafeAreaView, type any`  
+**Branch:** `master`
+
+**Changes:**
+- Migrated audio from deprecated `expo-av` to `expo-audio` (`useAudioPlayer` / `useAudioPlayerStatus` hooks). `expo-av` removed from dependencies.
+- Replaced `SafeAreaView` from `react-native` (deprecated) with `SafeAreaView` from `react-native-safe-area-context`.
+- Replaced `any` type in `handlePlaceSelected` with `GooglePlaceDetail | null` from `react-native-google-places-autocomplete`.
+- `setupAudio()` function removed (no longer needed — `expo-audio` handles audio mode internally).
+- `unloadSound()` function removed (player lifecycle managed by `useAudioPlayer` hook).
+- `soundRef` removed (replaced by `audioPlayer` and `audioStatus` from hooks).
+- No rebuild required — all JS changes, hot reload applies.
+
+---
+
 ### v1.1.0 — 2026-07-22 (Map fix)
 
 **Commit:** `fix: add Google Maps API key to AndroidManifest and enable Maps SDK for Android`  
@@ -369,7 +385,7 @@ Items are ordered by priority.
 
 ### 🔴 None currently blocking
 
-The app is fully functional as of v1.1.0.
+The app is fully functional as of v1.2.0.
 
 ### 🟡 Medium priority
 
@@ -377,9 +393,10 @@ The app is fully functional as of v1.1.0.
 |---|---|---|
 | 1 | Replace `explore.tsx` with something useful (alarm history, settings, or remove the tab) | `app/(tabs)/explore.tsx`, `app/(tabs)/_layout.tsx` |
 | 2 | ~~Add Google Maps API key to `AndroidManifest.xml`~~ ✅ Done in v1.1.0 | — |
-| 3 | Migrate `expo-av` → `expo-audio` (deprecated in SDK 54, breaks in SDK 55) | `app/(tabs)/index.tsx` |
-| 4 | Replace `SafeAreaView` from `react-native` with one from `react-native-safe-area-context` | `app/(tabs)/index.tsx` |
-| 5 | Review for implicit `any` TypeScript types across all files | All `.ts` / `.tsx` |
+| 3 | ~~Migrate `expo-av` → `expo-audio`~~ ✅ Done in v1.2.0 | — |
+| 4 | ~~Replace `SafeAreaView` from `react-native`~~ ✅ Done in v1.2.0 | — |
+| 5 | ~~Fix `any` type in `handlePlaceSelected`~~ ✅ Done in v1.2.0 | — |
+| 6 | Review for remaining implicit `any` TypeScript types across all files | All `.ts` / `.tsx` |
 
 ### 🟢 Low priority / Nice to have
 
